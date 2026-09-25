@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NilaiKU - Permanen</title>
+<style>
+body{font-family:Arial;background:#f1f5f9;margin:0;padding:12px}
+.card{background:#fff;padding:20px;border-radius:16px;max-width:1000px;margin:15px auto;box-shadow:0 8px 20px rgba(0,0,0,.1)}
+input,select{padding:10px;border:1px solid #ccc;border-radius:10px}
+button{padding:10px 14px;border:0;border-radius:10px;background:#4f46e5;color:#fff;font-weight:700;cursor:pointer}
+.tag{background:#e0e7ff;color:#4f46e5;padding:6px 12px;border-radius:20px;margin:3px;display:inline-block}
+#loginPage,#appGuru,#appSiswa{display:none}
+table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #ddd;padding:6px;text-align:center}th{background:#4f46e5;color:#fff}
+</style>
+</head>
+<body>
+
+<div class="card" id="materiPage"><h1>📚 NilaiKU</h1><p>Data tersimpan permanen di HP, tidak hilang saat kembali</p><button onclick="materiPage.style.display='none';loginPage.style.display='block'">LOGIN</button></div>
+
+<div class="card" id="loginPage" style="max-width:380px;text-align:center">
+<h2>LOGIN</h2><input id="u" placeholder="Username" style="width:85%"><br><br><input id="p" type="password" placeholder="Password" style="width:85%"><br><br>
+<button onclick="login()" style="width:90%">MASUK</button><p id="err" style="color:red"></p>
+<small>guru / GuruSMK2024 | admin / admin123 | siswa / siswa123</small>
+</div>
+
+<div class="card" id="appGuru">
+<h2>DASHBOARD GURU <button onclick="goBack()" style="float:right;background:gray">Kembali</button> <button onclick="logout()" style="float:right;background:red;margin-right:5px">Logout</button></h2>
+
+<h3>1. Mapel (Guru Pilih Sendiri - Tersimpan Permanen)</h3>
+<div id="listMapel" style="border:1px dashed #ccc;padding:12px;border-radius:10px;min-height:40px"></div>
+<input id="newMapel" placeholder="Nama mapel" style="width:60%;margin-top:8px"><button onclick="addMapel()">+ Tambah</button>
+
+<hr>
+<h3>2. Input Nilai (Kelas 10,11,12 - Tersimpan Permanen)</h3>
+Nama: <input id="nama" placeholder="Nama siswa"> Kelas: <select id="kelas"><option>10</option><option>11</option><option selected>12</option></select>
+<div id="formNilai" style="margin-top:10px"></div>
+<button onclick="save()" style="background:#10b981;margin-top:10px">SIMPAN (Gak bakal hilang)</button>
+
+<h3>Rekap (Tetap ada walau kembali)</h3>
+<table id="tblGuru"></table>
+</div>
+
+<div class="card" id="appSiswa">
+<h2>DASHBOARD SISWA <button onclick="goBack()" style="float:right;background:gray">Kembali</button> <button onclick="logout()" style="float:right;background:red;margin-right:5px">Logout</button></h2>
+<input id="cari" placeholder="Cari nama..." oninput="renderS()"><select id="fKelas" onchange="renderS()"><option value="all">Semua</option><option value="10">10</option><option value="11">11</option><option value="12">12</option></select>
+<table id="tblSiswa"></table>
+</div>
+
+<script>
+// KUNCI PENYIMPANAN PERMANEN - JANGAN GANTI LAGI
+let db = JSON.parse(localStorage.getItem('FINAL_DB_NILAI') || '[]');
+let mp = JSON.parse(localStorage.getItem('FINAL_DB_MAPEL') || '[]');
+const AK={guru:'GuruSMK2024',admin:'admin123',siswa:'siswa123'};
+
+function saveDB(){ localStorage.setItem('FINAL_DB_NILAI', JSON.stringify(db)); }
+function saveMP(){ localStorage.setItem('FINAL_DB_MAPEL', JSON.stringify(mp)); }
+
+function login(){
+ let user=u.value.trim(),pass=p.value.trim();
+ if(AK[user]&&AK[user]==pass){
+  loginPage.style.display='none';
+  if(user=='siswa'){appSiswa.style.display='block';renderS()}else{appGuru.style.display='block';renderM();renderG()}
+ }else err.innerText='Salah!';
+}
+function goBack(){ appGuru.style.display='none'; appSiswa.style.display='none'; materiPage.style.display='block'; }
+function logout(){ if(confirm('Logout? Data tetap tersimpan kok')){ appGuru.style.display='none'; appSiswa.style.display='none'; materiPage.style.display='block'; loginPage.style.display='none'; } }
+
+function addMapel(){
+ let m=newMapel.value.trim(); if(!m) return;
+ mp.push(m); newMapel.value=''; saveMP(); renderM(); renderG();
+}
+function renderM(){
+ if(!mp.length){listMapel.innerHTML='Belum ada mapel - tambah dulu';formNilai.innerHTML='<i style=color:red>Tambah mapel dulu!</i>';return}
+ listMapel.innerHTML=mp.map((x,i)=>`<span class=tag>${x} <b onclick="mp.splice(${i},1);saveMP();renderM();renderG()" style="color:red;cursor:pointer"> x</b></span>`).join('');
+ formNilai.innerHTML=mp.map(x=>`${x}: <input id="v_${x}" type="number" style="width:70px"> `).join('');
+}
+function save(){
+ if(!mp.length) return alert('Buat mapel dulu!');
+ let n=nama.value.trim(); if(!n) return alert('Isi nama!');
+ let nil={},tot=0; mp.forEach(x=>{let v=+document.getElementById('v_'+x).value||0; nil[x]=v; tot+=v});
+ db.push({nama:n,kelas:kelas.value,nilai:nil,rata:Math.round(tot/mp.length)});
+ saveDB(); nama.value=''; renderG();
+}
+function renderG(){
+ let h='<tr><th>Nama</th><th>Kls</th>'+mp.map(x=>`<th>${x}</th>`).join('')+'<th>Rata</th><th>Hapus</th></tr>';
+ db.forEach((s,i)=>{h+=`<tr><td>${s.nama}</td><td>${s.kelas}</td>`+mp.map(x=>`<td>${s.nilai[x]}</td>`).join('')+`<td><b>${s.rata}</b></td><td><button onclick="db.splice(${i},1);saveDB();renderG();renderS()" style="background:red">X</button></td></tr>`});
+ tblGuru.innerHTML=h;
+}
+function renderS(){
+ let q=cari.value.toLowerCase(), f=fKelas.value;
+ let h='<tr><th>Nama</th><th>Kls</th>'+mp.map(x=>`<th>${x}</th>`).join('')+'<th>Rata</th></tr>';
+ db.forEach(s=>{
+  if(f!='all' && s.kelas!=f) return;
+  if(q &&!s.nama.toLowerCase().includes(q)) return;
+  h+=`<tr><td>${s.nama}</td><td>${s.kelas}</td>`+mp.map(x=>`<td>${s.nilai[x]}</td>`).join('')+`<td>${s.rata}</td></tr>`;
+ });
+ tblSiswa.innerHTML=h;
+}
+// LOAD AWAL BIAR GAK HILANG
+renderM(); renderG();
+</script>
+</body>
+</html>
